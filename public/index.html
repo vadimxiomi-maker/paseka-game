@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Моя Пасека</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; user-select: none; }
+    body { background: #1e2b18; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .top, .bar { background: #2a1b0e; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 2px solid #6e4726; flex-shrink: 0; }
+    .bar { justify-content: center; border-top: 2px solid #6e4726; border-bottom: none; }
+    button { background: linear-gradient(180deg, #f59e0b, #d97706); border: 2px solid #fef3c7; color: #1f1200; font-weight: 800; padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; }
+    button.active { background: linear-gradient(180deg, #4ade80, #16a34a); color: #052e16; border-color: #dcfce7; }
+    canvas { flex: 1; min-height: 0; width: 100%; display: block; cursor: pointer; }
+    .overlay { position: fixed; inset: 0; background: radial-gradient(circle at top, #4d7c2b 0%, #1a2e12 100%); z-index: 50; display: flex; justify-content: center; align-items: center; padding: 15px; overflow-y: auto; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 60; display: none; justify-content: center; align-items: center; padding: 15px; }
+    .card { background: #2c1d11; border: 3px solid #d97706; border-radius: 18px; max-width: 560px; width: 100%; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); display: flex; flex-direction: column; gap: 12px; }
+    .opt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .opt-card { background: #3d2817; border: 2px solid #6e4726; border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; font-size: 12px; }
+    .opt-card.sel { border-color: #4ade80; background: #1f3d1c; }
+    input { background: #1a1008; border: 2px solid #8a5a32; color: #fff; padding: 8px 10px; border-radius: 10px; font-size: 14px; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="loginScreen" class="overlay" style="z-index:80;">
+    <div class="card" style="max-width:400px;">
+      <h2 style="text-align:center; color:#fde047;">🐝 МОЯ ПАСЕКА 🌻</h2>
+      <p style="text-align:center; font-size:12px; color:#d6c3b0;">Войди в аккаунт для сохранения в облаке или играй как гость</p>
+      <input type="text" id="authLogin" placeholder="Почта Google или Логин" />
+      <input type="password" id="authPass" placeholder="Пароль" />
+      <div style="display:flex; gap:8px;">
+        <button style="flex:1; background:#38bdf8; color:#082f49;" onclick="doAuth('login')">🔑 Войти</button>
+        <button style="flex:1; background:#4ade80; color:#052e16;" onclick="doAuth('register')">📝 Регистрация</button>
+      </div>
+      <button style="background:#422b18; color:#fde68a;" onclick="document.getElementById('loginScreen').style.display='none'">👤 Играть как гость</button>
+    </div>
+  </div>
+
+  <div id="menuScreen" class="overlay">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <span id="authStatus" style="font-size:12px; color:#86efac;">Гостевой режим</span>
+                <div style="display:flex; gap:6px;">
+          <button style="background:#38bdf8; color:#082f49;" onclick="openFriends()">👥 Друзья</button>
+          <button id="logoutBtn" style="background:#f87171; color:#fff; display:none;" onclick="doLogout()">🚪 Выйти</button>
+                 <button onclick="nextTrack()">🎶 Сменить трек</button>
+          <button id="musicBtn" onclick="toggleMusic()">🔊 Музыка: ВКЛ</button>
+
+        </div>
+
+      </div>
+      <h2 style="text-align:center; color:#fde047;">🏡 НАСТРОЙКА ПАСЕКИ</h2>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div id="avatarPreview" style="width:70px; height:70px; border:3px solid #f59e0b; border-radius:14px; background:#3d2817; display:flex; align-items:center; justify-content:center; font-size:40px;">🧔🏻‍♂️</div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; gap:6px;">
+            <button id="gMale" class="active" onclick="setGender('male')">👨 Муж</button>
+            <button id="gFemale" onclick="setGender('female')">👩 Жен</button>
+            <button onclick="nextFace()">🔄 Лицо</button>
+          </div>
+          <input type="text" id="inpName" value="Пчеловод Алекс" />
+        </div>
+      </div>
+      <div class="opt-grid" id="biomeOpts">
+        <div class="opt-card sel" onclick="selOpt('biome','meadow',this)">🌿 <b>Солнечный луг</b><br><span style="color:#86efac;">Баланс</span></div>
+        <div class="opt-card" onclick="selOpt('biome','forest',this)">🌲 <b>Лесная опушка</b><br><span style="color:#86efac;">Хвойный лес</span></div>
+        <div class="opt-card" onclick="selOpt('biome','mountain',this)">🏔️ <b>Горная долина</b><br><span style="color:#86efac;">+20% цена меда</span></div>
+      </div>
+      <div class="opt-grid" id="hiveOpts">
+        <div class="opt-card sel" onclick="selOpt('hive','classic',this)">🪵 <b>Классика</b><br><span style="color:#fde047;">Дадан</span></div>
+        <div class="opt-card" onclick="selOpt('hive','straw',this)">🛖 <b>Плетеный</b><br><span style="color:#fde047;">Сапетка</span></div>
+        <div class="opt-card" onclick="selOpt('hive','multi',this)">🏛️ <b>Многокорпусный</b><br><span style="color:#fde047;">3 этажа</span></div>
+      </div>
+      <button style="padding:12px; font-size:15px; background:linear-gradient(180deg,#4ade80,#16a34a); color:#052e16;" onclick="startGame()">🚀 ОТКРЫТЬ СВОЮ ПАСЕКУ</button>
+    </div>
+  </div>
+
+  <div class="top">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div id="hudAvatar" style="width:36px; height:36px; border:2px solid #fbbf24; border-radius:8px; background:#452711; display:flex; align-items:center; justify-content:center; font-size:20px;">🧔🏻‍♂️</div>
+      <div><b id="hudName">Пасека</b> <span id="hudBiome" style="font-size:12px; color:#bef264;">(Луг)</span><br>🪙 <b id="coins" style="color:#fde047;">250</b> | 🍯 Банок: <b id="jars">0</b></div>
+    </div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button onclick="toggleMusic()" id="hudMusicBtn">🔇</button>
+      <button style="background:#facc15;" onclick="collectAllHoney()">🍯 Собрать всё</button>
+      <button onclick="sellHoney()">💰 Продать (<span id="sellPrice">30</span>🪙)</button>
+      <button style="background:#4ade80; color:#052e16;" onclick="openShop('bees')">🛒 Магазин</button>
+      <button style="background:#38bdf8; color:#082f49;" onclick="openFriends()">👥 Друзья</button>
+      <button onclick="document.getElementById('menuScreen').style.display='flex'">⚙️ Меню</button>
+    </div>
+  </div>
+  <canvas id="c"></canvas>
+  <div id="hoverTip" style="position:fixed; pointer-events:none; background:#1c120aee; border:2px solid #f59e0b; color:#fef3c7; padding:6px 10px; border-radius:10px; font-size:12px; display:none; z-index:40;"></div>
+  <div id="toastMsg" style="position:fixed; top:56px; left:50%; transform:translateX(-50%); background:#1c120af2; border:2px solid #fbbf24; color:#fef3c7; padding:6px 16px; border-radius:16px; font-size:13px; font-weight:bold; display:none; z-index:90; pointer-events:none;"></div>
+  <div id="quickPicker" onmouseenter="clearTimeout(window._qpT)" onmouseleave="hideQuick()" style="display:none; position:fixed; bottom:50px; left:50%; transform:translateX(-50%); background:#22150bf5; border:2px solid #d97706; border-radius:14px; padding:7px 14px; justify-content:center; gap:6px; flex-wrap:wrap; z-index:35; max-width:92vw;"></div>
+   <div class="bar" id="tools" onmouseleave="hideQuick()">
+    <button class="active" onclick="pickMainTool('collect', this)">🖐 Сбор</button>
+    <button id="waterBtn" onmouseenter="showQuick('water')" onclick="pickMainTool('water', this); showQuick('water')">💧 Полив: Садовая (∞)</button>
+    <button id="fertBtn" onmouseenter="showQuick('fert')" onclick="pickMainTool('fert', this); showQuick('fert')">🧪 Удобрить (0)</button>
+    <button onclick="pickMainTool('move', this)">📦 Передвинуть</button>
+    <button onclick="pickMainTool('del', this)">🗑️ Удалить</button>
+    <button id="hiveBtn" onmouseenter="showQuick('hive')" onclick="pickMainTool('hive', this); showQuick('hive')">🐝 Улей: Классика (1)</button>
+    <button id="seedBtn" onmouseenter="showQuick('plant')" onclick="pickMainTool('plant', this); showQuick('plant')">🌱 Сажать: Клевер (3)</button>
+  </div>
+
+      <div id="beeShopWin" class="modal-bg"><div class="card"><div style="display:flex; justify-content:space-between;"><h3 style="color:#fde047;">🛒 Магазин</h3><button onclick="this.closest('.modal-bg').style.display='none'">✖</button></div><div style="display:flex; gap:6px; flex-wrap:wrap;"><button id="tabBees" class="active" onclick="openShop('bees')">🐝 Пчелы</button><button id="tabHives" class="active" onclick="openShop('hives')">🏠 Ульи</button><button id="tabPlants" class="active" onclick="openShop('plants')">🌸 Растения</button><button id="tabWater" class="active" onclick="openShop('water')">💧 Полив</button><button id="tabFert" class="active" onclick="openShop('fert')">🧪 Удобрения</button><button id="tabBiomes" class="active" onclick="openShop('biomes')">🌳 Декор</button></div><div id="beeShopList" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; max-height:55vh;"></div></div></div>
+
+
+
+  <div id="friendsWin" class="modal-bg"><div class="card" style="max-width:440px;"><div style="display:flex; justify-content:space-between;"><h3 style="color:#fde047;">👥 Друзья</h3><button onclick="this.closest('.modal-bg').style.display='none'">✖</button></div><div style="font-size:12px;">Твой ID: <b id="myPidText" style="color:#4ade80;"></b></div><div style="display:flex; gap:6px;"><input type="text" id="friendIdInp" placeholder="ID друга" /><button onclick="addFriendById()">➕</button></div><div id="friendsListBox" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;"></div><button id="homeBtn" style="display:none; background:#f87171; color:#fff;" onclick="visitGrid=null; this.style.display='none'">🏠 Домой</button></div></div>
+  <script>
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    const COLS = 8, ROWS = 5;
+    const FACES = { male: ['🧔🏻‍♂️', '👨🏻‍🌾', '👴🏻', '🧑🏻‍🦰', '👦🏻'], female: ['👩🏻‍🌾', '👧🏻', '👵🏻', '👩🏼‍🦰', '👩🏻‍🦱'] };
+       const BIOMES = {
+      meadow:   { name: 'Солнечный луг',  cost: 0,   bg: '#4d7c2b', c1: '#578c32', fence: '#92400e', sell: 30, desc: 'Ручей, ромашки, бабочки и пеньки' },
+      forest:   { name: 'Лесная опушка',  cost: 450, bg: '#143317', c1: '#19401d', fence: '#3f1d0b', sell: 33, desc: 'Густой хвойный бор, мухоморы и папоротник' },
+      mountain: { name: 'Горная долина',  cost: 900, bg: '#334155', c1: '#46635c', fence: '#94a3b8', sell: 38, desc: 'Заснеженные хребты, водопад и альпийские камни' }
+    };
+
+       const BEE_BREEDS = {
+      forest:   { name: '1. Лесная',       cost: 80,    spd: 1.7, cap: 5,  life: 350,  sz: 1.0,  col: '#facc15', stripe: '#1c1917', crown: false, desc: 'Базовая (350 рейсов)' },
+      meadow:   { name: '2. Луговая',      cost: 240,   spd: 2.3, cap: 8,  life: 500,  sz: 0.95, col: '#fb923c', stripe: '#431407', crown: false, desc: 'Шустрая (500 рейсов)' },
+      carpath:  { name: '3. Карпатская',   cost: 550,   spd: 2.2, cap: 12, life: 700,  sz: 1.05, col: '#fde047', stripe: '#3f3f46', crown: false, desc: 'Мирная (700 рейсов)' },
+      buckfast: { name: '4. Бакфаст',      cost: 1200,  spd: 2.7, cap: 16, life: 950,  sz: 1.1,  col: '#f59e0b', stripe: '#451a03', crown: false, desc: 'Селекционная (950 рейсов)' },
+      caucas:   { name: '5. Кавказская',   cost: 2600,  spd: 2.3, cap: 24, life: 1200, sz: 1.25, col: '#cbd5e1', stripe: '#1e293b', crown: false, desc: 'Тяжеловоз (1200 рейсов)' },
+      alpine:   { name: '6. Альпийская',   cost: 5200,  spd: 3.0, cap: 30, life: 1500, sz: 1.3,  col: '#93c5fd', stripe: '#1e3a8a', crown: false, desc: 'Горная (1500 рейсов)' },
+      emerald:  { name: '7. Изумрудная',   cost: 10500, spd: 3.3, cap: 38, life: 1900, sz: 1.15, col: '#34d399', stripe: '#064e3b', crown: false, desc: 'Редкая (1900 рейсов)' },
+      ruby:     { name: '8. Огненная',     cost: 21000, spd: 3.7, cap: 48, life: 2400, sz: 1.2,  col: '#f87171', stripe: '#7f1d1d', crown: false, desc: 'Реактивная (2400 рейсов)' },
+      crystal:  { name: '9. Кристальная',  cost: 42000, spd: 3.6, cap: 60, life: 2900, sz: 1.25, col: '#e0f2fe', stripe: '#0284c7', crown: true,  desc: 'Аристократка (2900 рейсов)' },
+      golden:   { name: '10. Королевская', cost: 85000, spd: 4.1, cap: 80, life: 3500, sz: 1.35, col: '#fef08a', stripe: '#b45309', crown: true,  desc: 'Легенда (3500 рейсов)' }
+    };
+        const PLANTS_CFG = {
+      clover:    { name: '1. Клевер',      cost: 35,   maxW: 6,  hold: 1.0, shape: 'clover',  col: '#f472b6', dot: '#fbcfe8', mult: 1.0, desc: 'x1.0 меда | стойкость x1.0 (6 поливов)' },
+      dandelion: { name: '2. Одуванчик',   cost: 95,   maxW: 8,  hold: 1.2, shape: 'sun',     col: '#facc15', dot: '#ca8a04', mult: 1.3, desc: 'x1.3 меда | стойкость x1.2 (8 поливов)' },
+      chamomile: { name: '3. Ромашка',     cost: 220,  maxW: 10, hold: 1.4, shape: 'daisy',   col: '#ffffff', dot: '#f59e0b', mult: 1.6, desc: 'x1.6 меда | стойкость x1.4 (10 поливов)' },
+      buckwheat: { name: '4. Гречиха',     cost: 480,  maxW: 12, hold: 1.7, shape: 'cluster', col: '#fef3c7', dot: '#d97706', mult: 2.0, desc: 'x2.0 меда | стойкость x1.7 (12 поливов)' },
+      sunflower: { name: '5. Подсолнух',   cost: 1050, maxW: 14, hold: 2.0, shape: 'sun',     col: '#fbbf24', dot: '#451a03', mult: 2.5, desc: 'x2.5 меда | стойкость x2.0 (14 поливов)' },
+      lavender:  { name: '6. Лаванда',     cost: 2200, maxW: 16, hold: 2.3, shape: 'spike',   col: '#c084fc', dot: '#7e22ce', mult: 3.1, desc: 'x3.1 меда | стойкость x2.3 (16 поливов)' },
+      heather:   { name: '7. Вереск',      cost: 4600, maxW: 18, hold: 2.6, shape: 'spike',   col: '#e879f9', dot: '#86198f', mult: 3.8, desc: 'x3.8 меда | стойкость x2.6 (18 поливов)' },
+      sage:      { name: '8. Шалфей',      cost: 9200, maxW: 20, hold: 2.9, shape: 'spike',   col: '#60a5fa', dot: '#1d4ed8', mult: 4.6, desc: 'x4.6 меда | стойкость x2.9 (20 поливов)' },
+      linden:    { name: '9. Липовый куст',cost: 18500,maxW: 24, hold: 3.2, shape: 'tree',    col: '#bef264', dot: '#fef08a', mult: 5.6, desc: 'x5.6 меда | стойкость x3.2 (24 полива)' },
+      orchid:    { name: '10. Орхидея',    cost: 36000,maxW: 30, hold: 3.6, shape: 'orchid',  col: '#fb7185', dot: '#ffe4e6', mult: 7.0, desc: 'x7.0 меда | стойкость x3.6 (30 поливов)' }
+    };
+    const FERT_CFG = {
+      peat:   { name: '1. Торфяная смесь',  cost: 160,  pack: 10, mult: 1.5, col: '#a3e635', desc: 'Пачка 10 шт. — держит влагу в 1.5 раза дольше' },
+      elixir: { name: '2. Цветочный эликсир',cost: 480,  pack: 10, mult: 2.0, col: '#34d399', desc: 'Пачка 10 шт. — держит влагу в 2.0 раза дольше' },
+      humus:  { name: '3. Био-гумус Люкс',  cost: 1400, pack: 10, mult: 2.7, col: '#2dd4bf', desc: 'Пачка 10 шт. — держит влагу в 2.7 раза дольше' },
+      royal:  { name: '4. Королевский гель',cost: 3800, pack: 10, mult: 3.5, col: '#fde047', desc: 'Пачка 10 шт. — держит влагу в 3.5 раза дольше' }
+    };
+
+    const WATER_SYSTEMS = [
+      { id: 0, name: 'Садовая лейка',      cost: 0,     maxNec: 100, uses: Infinity, fx: '#38bdf8', desc: 'Вечная (100% нектара)' },
+      { id: 1, name: 'Медная лейка-душ',   cost: 350,   maxNec: 160, uses: 25,       fx: '#7dd3fc', desc: '160% нектара (25 поливов)' },
+      { id: 2, name: 'Капельный шланг',    cost: 1200,  maxNec: 240, uses: 45,       fx: '#34d399', desc: '240% нектара (45 поливов)' },
+      { id: 3, name: 'Авто-спринклер',     cost: 4200,  maxNec: 340, uses: 70,       fx: '#a78bfa', desc: '340% нектара (70 поливов)' },
+      { id: 4, name: 'Гидро-система Эдем', cost: 14000, maxNec: 500, uses: 110,      fx: '#fde047', desc: '500% нектара (110 поливов)' }
+    ];
+    const HIVE_MODELS = {
+      box:     { name: '1. Старый ящик',    cost: 110,   cap: 50,  slots: 2, dur: 35,  body: '#a16207', roof: '#713f12', desc: '2 бан., 2 пчелы, износ 35' },
+      classic: { name: '2. Классика Дадан', cost: 220,   cap: 100, slots: 4, dur: 70,  body: '#d97706', roof: '#9a3412', desc: '4 бан., 4 пчелы, износ 70' },
+      straw:   { name: '3. Сапетка',        cost: 520,   cap: 125, slots: 4, dur: 100, body: '#eab308', roof: '#854d0e', desc: '5 бан., 4 пчелы, износ 100' },
+      multi:   { name: '4. Многокорпусный', cost: 1300,  cap: 175, slots: 5, dur: 150, body: '#e0f2fe', roof: '#0284c7', desc: '7 бан., 5 пчел, износ 150' },
+      long:    { name: '5. Улей-лежак',     cost: 3200,  cap: 225, slots: 5, dur: 210, body: '#86efac', roof: '#15803d', desc: '9 бан., 5 пчел, износ 210' },
+      thermo:  { name: '6. Термо-улей',     cost: 7500,  cap: 300, slots: 6, dur: 280, body: '#fda4af', roof: '#be123c', desc: '12 бан., 6 пчел, износ 280' },
+      crystal: { name: '7. Хрустальный',    cost: 18000, cap: 400, slots: 6, dur: 380, body: '#bae6fd', roof: '#0369a1', desc: '16 бан., 6 пчел, износ 380' },
+      royal:   { name: '8. Царский терем',  cost: 45000, cap: 550, slots: 8, dur: 520, body: '#fef08a', roof: '#b45309', desc: '22 бан., 8 пчел, износ 520' }
+    };
+    const DECOR_CFG = {
+      lantern: { name: '1. Садовый фонарь', cost: 300,   col: '#fde047', desc: 'Уютный светильник для участка' },
+      pond:    { name: '2. Прудик-поилка',  cost: 950,   col: '#38bdf8', desc: 'Пчёлы летают на +15% быстрее' },
+      tree:    { name: '3. Вековая Липа',   cost: 2800,  col: '#4ade80', desc: 'Раскидистое дерево (+15% нектара)' },
+      totem:   { name: '4. Золотой тотем',  cost: 7500,  col: '#fbbf24', desc: 'Цена продажи банок мёда +5🪙' },
+      gazebo:  { name: '5. Беседка отдыха', cost: 19000, col: '#f97316', desc: 'Резная беседка (+10🪙 к цене мёда)' }
+    };
+
+       let seedBag = { clover: 3 }, hiveBag = { classic: 1 }, waterCharges = { 0: Infinity }, fertBag = {};
+    let selectedSeed = 'clover', activeWater = 0, activeHive = 'classic', activeFert = 'peat', shopTab = 'bees';
+
+    let fxParticles = [], selCell = null, onlineList = [], visitGrid = null, ws = null;
+    let prof = { gender: 'male', faceIdx: 0, biome: 'meadow', hive: 'classic', name: 'Пчеловод Алекс' };
+    let coins = 250, jars = 0, tool = 'collect';
+    let myPid = localStorage.getItem('my_pid') || ('P' + Math.floor(1000 + Math.random() * 9000));
+    localStorage.setItem('my_pid', myPid);
+    let savedFriends = JSON.parse(localStorage.getItem('my_friends') || '[]');
+    let authData = JSON.parse(localStorage.getItem('paseka_auth') || 'null');
+
+    let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    grid.at(2).splice(1, 1, { t: 'hive', hModel: 'classic', honey: 0, dur: 70 });
+    grid.at(2).splice(3, 1, { t: 'flower', pType: 'clover', nec: 100, maxNec: 100, wLeft: 6, dead: false });
+    let bees = [{ hr: 2, hc: 1, breed: 'forest', life: 350, x: 0, y: 0, init: false, go: true, tr: 2, tc: 3, cargo: 0 }];
+
+    function notify(txt) {
+      const el = document.getElementById('toastMsg');
+      el.textContent = txt; el.style.display = 'block';
+      clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2200);
+    }
+    function ui() {
+      document.getElementById('coins').textContent = coins;
+      document.getElementById('jars').textContent = jars;
+    }
+        function updateToolLabels() {
+      const p = PLANTS_CFG[selectedSeed];
+      const ch = activeWater === 0 ? '∞' : (waterCharges[activeWater] || 0);
+      const fCnt = fertBag[activeFert] || 0;
+      document.getElementById('seedBtn').textContent = `🌱 Сажать: ${p.name.replace(/^\d+\.\s*/, '')} (${seedBag[selectedSeed] || 0})`;
+      document.getElementById('waterBtn').textContent = `💧 Полив: ${WATER_SYSTEMS[activeWater].name.split(' ').at(0)} (${ch})`;
+      document.getElementById('fertBtn').textContent = `🧪 Удобрить (${fCnt})`;
+      document.getElementById('hiveBtn').textContent = `🐝 Улей: ${HIVE_MODELS[activeHive].name.replace(/^\d+\.\s*/, '')} (${hiveBag[activeHive] || 0})`;
+    }
+    function setTool(t, btn) {
+      tool = t;
+      document.querySelectorAll('#tools button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+    function pickMainTool(t, btn) {
+      setTool(t, btn);
+      if (t !== 'plant' && t !== 'water' && t !== 'hive' && t !== 'fert') document.getElementById('quickPicker').style.display = 'none';
+    }
+    function hideQuick() {
+      clearTimeout(window._qpT);
+      window._qpT = setTimeout(() => { document.getElementById('quickPicker').style.display = 'none'; }, 250);
+    }
+    function showQuick(mode) {
+      clearTimeout(window._qpT);
+      const qp = document.getElementById('quickPicker');
+      qp.style.display = 'flex';
+      if (mode === 'plant') {
+        const items = Object.entries(seedBag).filter(([_, cnt]) => cnt > 0);
+        qp.innerHTML = items.length ? items.map(([k, cnt]) => `<button class="${selectedSeed === k ? 'active' : ''}" onclick="selectedSeed='${k}'; updateToolLabels(); setTool('plant', document.getElementById('seedBtn')); showQuick('plant')">🌸 ${PLANTS_CFG[k].name.replace(/^\d+\.\s*/, '')} (${cnt})</button>`).join('') : '<span style="font-size:12px; color:#fde047;">Нет семян — купи в Магазине!</span>';
+      } else if (mode === 'water') {
+        const avail = WATER_SYSTEMS.filter(w => w.id === 0 || (waterCharges[w.id] || 0) > 0);
+        qp.innerHTML = avail.map(w => `<button class="${activeWater === w.id ? 'active' : ''}" onclick="activeWater=${w.id}; updateToolLabels(); setTool('water', document.getElementById('waterBtn')); showQuick('water')">💧 ${w.name} (${w.id === 0 ? '∞' : waterCharges[w.id]})</button>`).join('');
+      } else if (mode === 'fert') {
+        const items = Object.entries(fertBag).filter(([_, cnt]) => cnt > 0);
+        qp.innerHTML = items.length ? items.map(([k, cnt]) => `<button class="${activeFert === k ? 'active' : ''}" onclick="activeFert='${k}'; updateToolLabels(); setTool('fert', document.getElementById('fertBtn')); showQuick('fert')">🧪 ${FERT_CFG[k].name.replace(/^\d+\.\s*/, '')} (${cnt})</button>`).join('') : '<span style="font-size:12px; color:#fde047;">Нет удобрений — купи в Магазине!</span>';
+      } else if (mode === 'hive') {
+        const items = Object.entries(hiveBag).filter(([_, cnt]) => cnt > 0);
+        qp.innerHTML = items.length ? items.map(([k, cnt]) => `<button class="${activeHive === k ? 'active' : ''}" onclick="activeHive='${k}'; updateToolLabels(); setTool('hive', document.getElementById('hiveBtn')); showQuick('hive')">🏠 ${HIVE_MODELS[k].name.replace(/^\d+\.\s*/, '')} (${cnt})</button>`).join('') : '<span style="font-size:12px; color:#fde047;">Нет ульев — купи в Магазине!</span>';
+      }
+    }
+
+       const TRACKS = [
+      { name: 'Солнечное утро', tempo: 460, pat: new Array(1,2,3,4,2,3,1,2), chords: [[130.8,261.6,329.6,392.0,493.9],[110.0,220.0,261.6,329.6,392.0],[87.3,174.6,220.0,261.6,329.6],[98.0,196.0,246.9,293.7,392.0]] },
+      { name: 'Лесной ручей',   tempo: 520, pat: new Array(1,3,2,4,3,1,4,2), chords: [[146.8,293.7,349.2,440.0,523.3],[110.0,220.0,261.6,329.6,392.0],[116.5,233.1,293.7,349.2,440.0],[130.8,261.6,329.6,392.0,493.9]] },
+      { name: 'Вечерний мёд',   tempo: 560, pat: new Array(1,2,4,3,2,1,3,2), chords: [[164.8,329.6,392.0,493.9,587.3],[130.8,261.6,329.6,392.0,493.9],[146.8,293.7,349.2,440.0,523.3],[123.5,246.9,293.7,369.9,440.0]] },
+      { name: 'Горный ветер',   tempo: 430, pat: new Array(1,4,2,3,1,3,4,2), chords: [[174.6,349.2,440.0,523.3,659.3],[130.8,261.6,329.6,392.0,493.9],[146.8,293.7,349.2,440.0,523.3],[98.0,196.0,246.9,293.7,392.0]] }
+    ];
+    let trackIdx = Math.floor(Math.random() * TRACKS.length);
+    let audioCtx = null, musicTimer = null, musicOn = true;
+
+    function startMusicEngine() {
+      clearInterval(musicTimer);
+      if (!musicOn) return;
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const tr = TRACKS.at(trackIdx);
+      let step = 0;
+      const playTone = (freq, dur, vol, type) => {
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0008, audioCtx.currentTime + dur);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + dur);
+      };
+      musicTimer = setInterval(() => {
+        if (!musicOn) return;
+        const chord = tr.chords.at(Math.floor(step / 8) % tr.chords.length);
+        if (step % 8 === 0) playTone(chord.at(0), 3.2, 0.04, 'sine');
+        playTone(chord.at(tr.pat.at(step % 8)) * (Math.random() < 0.22 ? 2 : 1), 0.9, 0.032, 'triangle');
+        step++;
+      }, tr.tempo);
+    }
+
+    function nextTrack() {
+      trackIdx = (trackIdx + 1) % TRACKS.length;
+      musicOn = true;
+      document.getElementById('musicBtn').textContent = '🔊 Музыка: ВКЛ';
+      document.getElementById('hudMusicBtn').textContent = '🔊';
+      startMusicEngine();
+      notify('🎶 Трек: ' + TRACKS.at(trackIdx).name);
+    }
+
+    function toggleMusic() {
+      musicOn = !musicOn;
+      document.getElementById('musicBtn').textContent = musicOn ? '🔊 Музыка: ВКЛ' : '🔇 Музыка: ВЫКЛ';
+      document.getElementById('hudMusicBtn').textContent = musicOn ? '🔊' : '🔇';
+      if (musicOn) startMusicEngine(); else clearInterval(musicTimer);
+    }
+
+    window.addEventListener('pointerdown', () => {
+      if (musicOn && !musicTimer) startMusicEngine();
+      else if (musicOn && audioCtx?.state === 'suspended') audioCtx.resume();
+    }, { once: false });
+
+    function setGender(g) {
+      prof.gender = g; prof.faceIdx = 0;
+      document.getElementById('gMale').classList.toggle('active', g === 'male');
+      document.getElementById('gFemale').classList.toggle('active', g === 'female');
+      document.getElementById('avatarPreview').textContent = FACES[g].at(0);
+    }
+    function nextFace() {
+      prof.faceIdx = (prof.faceIdx + 1) % FACES[prof.gender].length;
+      document.getElementById('avatarPreview').textContent = FACES[prof.gender].at(prof.faceIdx);
+    }
+        let ownedBiomes = ['meadow'];
+
+    function selOpt(type, val, el) {
+      if (prof.started) return notify('🔒 Стартовый набор уже выбран! Новые участки и ульи покупаются в Магазине.');
+      prof[type] = val;
+      el.parentElement.querySelectorAll('.opt-card').forEach(x => x.classList.remove('sel'));
+      el.classList.add('sel');
+    }
+    function startGame() {
+      prof.name = document.getElementById('inpName').value.trim() || 'Пчеловод';
+      if (!prof.started) {
+        prof.started = true;
+        ownedBiomes = [prof.biome];
+        const startModel = prof.hive || 'classic';
+        const hm = HIVE_MODELS[startModel];
+        grid.at(2).splice(1, 1, { t: 'hive', hModel: startModel, honey: 0, dur: hm.dur });
+        hiveBag = { [startModel]: 1 };
+        activeHive = startModel;
+        document.getElementById('biomeOpts').style.opacity = '0.5';
+        document.getElementById('hiveOpts').style.opacity = '0.5';
+      }
+      document.getElementById('hudAvatar').textContent = FACES[prof.gender].at(prof.faceIdx);
+      document.getElementById('hudName').textContent = prof.name;
+      document.getElementById('hudBiome').textContent = '(' + BIOMES[prof.biome].name + ')';
+      document.getElementById('sellPrice').textContent = BIOMES[prof.biome].sell;
+      updateToolLabels(); saveAllProgress(); syncServer();
+      document.getElementById('menuScreen').style.display = 'none';
+    }
+
+    function collectAllHoney() {
+      let total = 0;
+      for (let r = 0; r < ROWS; r++) for (let col = 0; col < COLS; col++) {
+        const cl = grid[r][col];
+        if (cl?.t === 'hive' && cl.honey >= 25 && cl.dur > 0) {
+          const j = Math.min(cl.dur, Math.floor(cl.honey / 25));
+          cl.honey -= j * 25; cl.dur -= j; total += j;
+          if (cl.dur <= 0) bees = bees.filter(b => !(b.hr === r && b.hc === col));
+        }
+      }
+      if (total > 0) { jars += total; ui(); saveAllProgress(); syncServer(); notify(`🍯 Собрано банок: +${total}!`); }
+      else notify('Пока нет готовых банок меда.');
+    }
+       function getJarPrice() {
+      let bonus = 0;
+      outerDecor.forEach(d => {
+        if (d?.type === 'totem') bonus += 5;
+        if (d?.type === 'gazebo') bonus += 10;
+      });
+      return BIOMES[prof.biome].sell + bonus;
+    }
+    function sellHoney() {
+      if (jars > 0) {
+        const price = getJarPrice();
+        jars--; coins += price;
+        document.getElementById('sellPrice').textContent = price;
+        ui(); saveAllProgress();
+      }
+    }
+
+           function openShop(tab) {
+      shopTab = tab || shopTab;
+      ['tabBees', 'tabHives', 'tabPlants', 'tabWater', 'tabFert', 'tabBiomes'].forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById({ bees: 'tabBees', hives: 'tabHives', plants: 'tabPlants', water: 'tabWater', fert: 'tabFert', biomes: 'tabBiomes' }[shopTab]).classList.add('active');
+      const box = document.getElementById('beeShopList');
+      if (shopTab === 'bees') {
+        box.innerHTML = Object.entries(BEE_BREEDS).map(([k, b]) => `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${b.col};">🐝 ${b.name}</b><br><span style="font-size:11px; color:#d6c3b0;">${b.desc} (груз: ${b.cap})</span></div><button onclick="buyBee('${k}')">${b.cost}🪙</button></div>`).join('');
+      } else if (shopTab === 'hives') {
+        box.innerHTML = Object.entries(HIVE_MODELS).map(([k, h]) => `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${h.body};">🏠 ${h.name}</b> <span style="color:#86efac; font-size:11px;">(${hiveBag[k] || 0} шт.)</span><br><span style="font-size:11px; color:#d6c3b0;">${h.desc}</span></div><button onclick="buyHiveModel('${k}')">+1 (${h.cost}🪙)</button></div>`).join('');
+      } else if (shopTab === 'plants') {
+        box.innerHTML = Object.entries(PLANTS_CFG).map(([k, p]) => `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${p.col};">🌸 ${p.name}</b> <span style="color:#86efac; font-size:11px;">(${seedBag[k] || 0} шт.)</span><br><span style="font-size:11px; color:#d6c3b0;">${p.desc}</span></div><button onclick="buySeed('${k}')">+1 (${p.cost}🪙)</button></div>`).join('');
+      } else if (shopTab === 'water') {
+        box.innerHTML = WATER_SYSTEMS.map(w => {
+          const ch = waterCharges[w.id] || 0;
+          return `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${w.fx};">💧 ${w.name}</b> ${w.id > 0 ? `<span style="color:#86efac; font-size:11px;">(${ch} полив.)</span>` : ''}<br><span style="font-size:11px; color:#d6c3b0;">${w.desc}</span></div>${w.id === 0 ? `<button class="active" onclick="activeWater=0; updateToolLabels()">✅ Базовая</button>` : `<button onclick="buyWater(${w.id})">+${w.uses} полив. (${w.cost}🪙)</button>`}</div>`;
+        }).join('');
+      } else if (shopTab === 'fert') {
+        box.innerHTML = Object.entries(FERT_CFG).map(([k, f]) => `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${f.col};">🧪 ${f.name}</b> <span style="color:#86efac; font-size:11px;">(в сумке: ${fertBag[k] || 0} шт.)</span><br><span style="font-size:11px; color:#d6c3b0;">${f.desc}</span></div><button onclick="buyFert('${k}')">Пачка +10 (${f.cost}🪙)</button></div>`).join('');
+      } else {
+        box.innerHTML = Object.entries(DECOR_CFG).map(([k, d]) => `<div style="background:#3d2817; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:${d.col};">🌳 ${d.name}</b><br><span style="font-size:11px; color:#d6c3b0;">${d.desc}</span></div><button onclick="buyDecor('${k}')">Поставить (${d.cost}🪙)</button></div>`).join('');
+      }
+      document.getElementById('beeShopWin').style.display = 'flex';
+    }
+    function buyFert(k) {
+      const f = FERT_CFG[k]; if (coins < f.cost) return notify('Мало монет!');
+      coins -= f.cost; fertBag[k] = (fertBag[k] || 0) + f.pack; activeFert = k;
+      updateToolLabels(); ui(); saveAllProgress(); openShop('fert'); notify(`🧪 Куплено: ${f.name} (+10 шт.)`);
+    }
+           let outerDecor = [];
+
+    function buyDecor(k) {
+      const d = DECOR_CFG[k]; if (coins < d.cost) return notify('Мало монет!');
+      const { cs, sx, sy } = metrics();
+      coins -= d.cost;
+      const sideX = outerDecor.length % 2 === 0 ? sx - 32 : sx + cs * COLS + 32;
+      const posY = sy + 40 + (outerDecor.length * 48) % Math.max(120, cs * ROWS - 60);
+      outerDecor.push({ type: k, x: sideX, y: posY });
+      ui(); saveAllProgress(); syncServer();
+      document.getElementById('beeShopWin').style.display = 'none';
+      notify(`✨ ${d.name} установлен! Инструментом 📦 можно перенести в любое место за забором.`);
+    }
+
+
+
+    function buyBee(k) {
+      const b = BEE_BREEDS[k]; if (coins < b.cost) return notify('Мало монет!');
+      for (let r = 0; r < ROWS; r++) for (let col = 0; col < COLS; col++) {
+        const cl = grid[r][col];
+        if (cl?.t === 'hive' && cl.dur > 0 && bees.filter(x => x.hr === r && x.hc === col).length < HIVE_MODELS[cl.hModel || 'classic'].slots) {
+          coins -= b.cost; bees.push({ hr: r, hc: col, breed: k, life: b.life, x: 0, y: 0, init: false, go: true, tr: -1, tc: -1, cargo: 0 });
+          ui(); saveAllProgress(); openShop('bees'); return notify(`🐝 ${b.name} заселена!`);
+        }
+      }
+      notify('Нет мест в ульях!');
+    }
+    function buyHiveModel(k) {
+      const h = HIVE_MODELS[k]; if (coins < h.cost) return notify('Мало монет!');
+      coins -= h.cost; hiveBag[k] = (hiveBag[k] || 0) + 1; activeHive = k; updateToolLabels(); ui(); saveAllProgress(); openShop('hives');
+    }
+    function buySeed(k) {
+      const p = PLANTS_CFG[k]; if (coins < p.cost) return notify('Мало монет!');
+      coins -= p.cost; seedBag[k] = (seedBag[k] || 0) + 1; selectedSeed = k; updateToolLabels(); ui(); saveAllProgress(); openShop('plants');
+    }
+    function buyWater(id) {
+      const w = WATER_SYSTEMS[id]; if (coins < w.cost) return notify('Мало монет!');
+      coins -= w.cost; waterCharges[id] = (waterCharges[id] || 0) + w.uses; activeWater = id; updateToolLabels(); ui(); saveAllProgress(); openShop('water');
+    }
+    function spawnWaterFx(x, y) {
+      const wCfg = WATER_SYSTEMS[activeWater];
+      for (let i = 0; i < 14 + activeWater * 6; i++) {
+        const ang = Math.random() * Math.PI * 2, spd = 1 + Math.random() * (2 + activeWater * 0.6);
+        fxParticles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1, life: 28, col: wCfg.fx, sz: 3 + activeWater * 0.6 });
+      }
+    }
+           function packSave() { return { prof, coins, jars, grid, bees, seedBag, hiveBag, fertBag, outerDecor, selectedSeed, activeWater, waterCharges, activeHive, activeFert, savedAt: Date.now() }; }
+    function applySave(s) {
+      if (!s) return;
+      if (s.prof) prof = s.prof; if (typeof s.coins === 'number') coins = s.coins; if (typeof s.jars === 'number') jars = s.jars;
+      if (s.grid) grid = s.grid; if (s.bees) bees = s.bees; if (s.seedBag) seedBag = s.seedBag; if (s.hiveBag) hiveBag = s.hiveBag;
+      if (s.fertBag) fertBag = s.fertBag; if (s.activeFert) activeFert = s.activeFert;
+      if (s.outerDecor) outerDecor = s.outerDecor;
+
+      if (s.selectedSeed) selectedSeed = s.selectedSeed; if (s.waterCharges) waterCharges = s.waterCharges;
+      if (typeof s.activeWater === 'number') activeWater = s.activeWater; if (s.activeHive) activeHive = s.activeHive;
+
+      document.getElementById('inpName').value = prof.name;
+      document.getElementById('avatarPreview').textContent = FACES[prof.gender].at(prof.faceIdx);
+      updateToolLabels(); ui();
+    }
+    async function saveAllProgress() {
+      const payload = packSave();
+      localStorage.setItem('paseka_local_save', JSON.stringify(payload));
+      if (authData) { try { await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: authData.login, password: authData.password, save: payload }) }); } catch (e) {} }
+    }
+    setInterval(saveAllProgress, 8000);
+    async function doAuth(mode) {
+      const login = document.getElementById('authLogin').value.trim(), password = document.getElementById('authPass').value.trim();
+      const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password, mode }) }).then(r => r.json());
+      if (!res.ok) return notify('❌ ' + res.error);
+      authData = { login: res.login, password, pid: res.pid }; myPid = res.pid;
+      localStorage.setItem('my_pid', myPid); localStorage.setItem('paseka_auth', JSON.stringify(authData)); updateAuthUI();
+      document.getElementById('loginScreen').style.display = 'none';
+      if (res.save) { applySave(res.save); startGame(); notify(`✅ С возвращением, ${res.login}!`); }
+      else { await saveAllProgress(); notify('🎉 Аккаунт создан! Настрой пасеку и жми «Открыть»'); }
+    }
+    function doLogout() { authData = null; localStorage.removeItem('paseka_auth'); updateAuthUI(); document.getElementById('loginScreen').style.display = 'flex'; }
+    function updateAuthUI() {
+      document.getElementById('authStatus').textContent = authData ? `✅ ${authData.login} (ID: ${authData.pid})` : 'Гостевой режим';
+      document.getElementById('logoutBtn').style.display = authData ? 'inline-block' : 'none';
+    }
+    (async () => {
+      updateAuthUI();
+      if (authData) {
+        document.getElementById('loginScreen').style.display = 'none';
+        try {
+          const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: authData.login, password: authData.password, mode: 'login' }) }).then(r => r.json());
+          if (res.ok && res.save) { applySave(res.save); startGame(); return; }
+        } catch (e) {}
+      }
+      const loc = JSON.parse(localStorage.getItem('paseka_local_save') || 'null');
+      if (loc) applySave(loc);
+    })();
+
+    function initWS() {
+      ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+      ws.onopen = syncServer;
+      ws.onmessage = e => {
+        const d = JSON.parse(e.data);
+        if (d.type === 'PLAYERS_LIST') { onlineList = d.list; renderFriends(); }
+        if (d.type === 'VISIT_DATA') { visitGrid = d.state.grid; document.getElementById('homeBtn').style.display = 'block'; document.getElementById('friendsWin').style.display = 'none'; }
+      };
+      ws.onclose = () => setTimeout(initWS, 3000);
+    }
+    initWS();
+    function syncServer() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'REGISTER_APIARY', id: myPid, name: prof.name, level: 1, hivesCount: 1, weeds: 0, state: { grid } })); }
+    function openFriends() { document.getElementById('myPidText').textContent = myPid; syncServer(); renderFriends(); document.getElementById('friendsWin').style.display = 'flex'; }
+    function addFriendById() {
+      const id = document.getElementById('friendIdInp').value.trim().toUpperCase();
+      if (id && id !== myPid && !savedFriends.includes(id)) { savedFriends.push(id); localStorage.setItem('my_friends', JSON.stringify(savedFriends)); document.getElementById('friendIdInp').value = ''; renderFriends(); }
+    }
+    function renderFriends() {
+      const box = document.getElementById('friendsListBox');
+      const allIds = Array.from(new Set([...savedFriends, ...onlineList.map(p => p.id).filter(id => id !== myPid)]));
+      box.innerHTML = !allIds.length ? '<div style="font-size:12px; color:#d6c3b0;">Список пуст. Введи ID друга выше!</div>' : allIds.map(id => {
+        const on = onlineList.find(p => p.id === id);
+        return `<div style="background:#3d2817; padding:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span>${on ? '🟢 ' + on.name : '⚪ Друг #' + id}</span>${on ? `<button style="background:#38bdf8; color:#082f49;" onclick="ws.send(JSON.stringify({type:'VISIT_APIARY',targetId:'${id}'}))">👀 В гости</button>` : '<span style="font-size:11px;">офлайн</span>'}</div>`;
+      }).join('');
+    }
+    function metrics() { const cs = Math.floor(Math.min((c.width - 40) / COLS, (c.height - 40) / ROWS)); return { cs, sx: Math.floor((c.width - cs * COLS) / 2), sy: Math.floor((c.height - cs * ROWS) / 2) }; }
+          let selDecorIdx = null;
+
+    c.onclick = (e) => {
+      if (visitGrid) return;
+      const rct = c.getBoundingClientRect(), { cs, sx, sy } = metrics();
+      const mx = e.clientX - rct.left, my = e.clientY - rct.top;
+      const insideFence = mx >= sx - 12 && mx <= sx + cs * COLS + 12 && my >= sy - 12 && my <= sy + cs * ROWS + 12;
+
+      if (!insideFence) {
+        const hitD = outerDecor.findIndex(item => item && Math.hypot(mx - item.x, my - item.y) < 28);
+        if (tool === 'del' && hitD !== -1) {
+          outerDecor.splice(hitD, 1); saveAllProgress(); syncServer(); return notify('🗑️ Декор убран');
+        }
+        if (tool === 'move') {
+          if (selDecorIdx === null && hitD !== -1) { selDecorIdx = hitD; return notify('Кликни в любое свободное место за забором!'); }
+          if (selDecorIdx !== null && outerDecor.at(selDecorIdx)) {
+            outerDecor.at(selDecorIdx).x = mx; outerDecor.at(selDecorIdx).y = my;
+            selDecorIdx = null; saveAllProgress(); syncServer(); return;
+          }
+        }
+        return;
+      }
+      const col = Math.floor((mx - sx) / cs), r = Math.floor((my - sy) / cs);
+      if (r < 0 || r >= ROWS || col < 0 || col >= COLS) return;
+
+      const cl = grid.at(r).at(col);
+      if (tool === 'move') {
+        if (!selCell && cl) selCell = { r, col };
+        else if (selCell && !cl) {
+          grid.at(r).splice(col, 1, grid.at(selCell.r).at(selCell.col));
+          grid.at(selCell.r).splice(selCell.col, 1, null);
+          bees.forEach(b => { if (b.hr === selCell.r && b.hc === selCell.col) { b.hr = r; b.hc = col; } });
+          selCell = null; saveAllProgress(); syncServer();
+        } else selCell = null;
+        return;
+      }
+      selCell = null;
+      if (tool === 'del' && cl) {
+        if (cl.t === 'hive') bees = bees.filter(b => !(b.hr === r && b.hc === col));
+        grid.at(r).splice(col, 1, null); saveAllProgress(); syncServer(); return;
+      }
+            if (tool === 'fert' && cl?.t === 'flower') {
+        if (cl.dead) return notify('🥀 Сгнило! Удали (🗑️).');
+        if ((fertBag[activeFert] || 0) <= 0) return notify('⚠️ Удобрения кончились! Купи пачку в Магазине.');
+        const fCfg = FERT_CFG[activeFert];
+        fertBag[activeFert]--;
+        cl.fertMult = fCfg.mult;
+        const pCfg = PLANTS_CFG[cl.pType || 'clover'];
+        const mxNec = Math.round(WATER_SYSTEMS.at(activeWater).maxNec * (pCfg.hold || 1) * cl.fertMult);
+        cl.maxNec = mxNec; cl.nec = mxNec;
+        spawnWaterFx(sx + col * cs + cs / 2, sy + r * cs + cs / 2);
+        updateToolLabels(); saveAllProgress(); syncServer();
+        return notify(`🧪 Куст удобрен (${fCfg.name}, стойкость x${fCfg.mult})!`);
+      }
+      if (tool === 'water' && cl?.t === 'flower') {
+        if (cl.dead) return notify('🥀 Сгнило! Удали (🗑️).');
+        if (cl.wLeft <= 0) { cl.dead = true; cl.nec = 0; return notify('🥀 Куст сгнил!'); }
+        cl.wLeft--;
+        const pCfg = PLANTS_CFG[cl.pType || 'clover'];
+        const mxNec = Math.round(WATER_SYSTEMS.at(activeWater).maxNec * (pCfg.hold || 1) * (cl.fertMult || 1));
+        cl.maxNec = mxNec; cl.nec = mxNec; spawnWaterFx(sx + col * cs + cs / 2, sy + r * cs + cs / 2);
+        if (activeWater > 0) { waterCharges[activeWater]--; if (waterCharges[activeWater] <= 0) { notify('💥 Лейка износилась!'); activeWater = 0; } updateToolLabels(); }
+        saveAllProgress(); syncServer(); return;
+      }
+
+      if (tool === 'collect' && cl?.t === 'hive' && cl.honey >= 25 && cl.dur > 0) {
+        const j = Math.min(cl.dur, Math.floor(cl.honey / 25)); cl.honey -= j * 25; cl.dur -= j; jars += j; ui(); saveAllProgress(); syncServer();
+        if (cl.dur <= 0) { bees = bees.filter(b => !(b.hr === r && b.hc === col)); notify('💥 Улей сломался!'); }
+      }
+      if (tool === 'hive' && !cl) {
+        if ((hiveBag[activeHive] || 0) <= 0) return notify('⚠️ Купи улей в Магазине!');
+        const hm = HIVE_MODELS[activeHive]; hiveBag[activeHive]--;
+        grid.at(r).splice(col, 1, { t: 'hive', hModel: activeHive, honey: 0, dur: hm.dur });
+        bees.push({ hr: r, hc: col, breed: 'forest', life: 350, x: 0, y: 0, init: false, go: true, tr: -1, tc: -1, cargo: 0 });
+        updateToolLabels(); saveAllProgress(); syncServer();
+      }
+      if (tool === 'plant' && !cl) {
+        if ((seedBag[selectedSeed] || 0) <= 0) {
+          const nxt = Object.entries(seedBag).find(([_, cnt]) => cnt > 0);
+          if (nxt) { selectedSeed = nxt.at(0); updateToolLabels(); } else return notify('⚠️ Семена кончились!');
+        }
+        const pCfg = PLANTS_CFG[selectedSeed], mxNec = WATER_SYSTEMS.at(activeWater).maxNec;
+        seedBag[selectedSeed]--;
+        grid.at(r).splice(col, 1, { t: 'flower', pType: selectedSeed, nec: mxNec, maxNec: mxNec, wLeft: pCfg.maxW, dead: false });
+        if (seedBag[selectedSeed] <= 0) { const nxt = Object.entries(seedBag).find(([_, cnt]) => cnt > 0); if (nxt) selectedSeed = nxt.at(0); }
+        updateToolLabels(); saveAllProgress(); syncServer();
+      }
+    };
+
+      c.onmousemove = (e) => {
+      const tip = document.getElementById('hoverTip'), rct = c.getBoundingClientRect(), { cs, sx, sy } = metrics();
+      const mx = e.clientX - rct.left, my = e.clientY - rct.top;
+      const hitD = outerDecor.find(item => item && typeof item === 'object' && Math.hypot(mx - item.x, my - item.y) < 28);
+      if (hitD) {
+        const d = DECOR_CFG[hitD.type];
+        tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+        tip.innerHTML = `<b style="color:${d.col}">🌳 ${d.name}</b><br><span style="color:#86efac;">${d.desc}</span>`;
+        return;
+      }
+      const col = Math.floor((mx - sx) / cs), r = Math.floor((my - sy) / cs);
+      const curGrid = visitGrid || grid;
+      if (r < 0 || r >= ROWS || col < 0 || col >= COLS || !curGrid.at(r).at(col)) { tip.style.display = 'none'; return; }
+
+      const cl = curGrid.at(r).at(col); tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+      if (cl.t === 'flower') {
+        const p = PLANTS_CFG[cl.pType || 'clover'];
+        tip.innerHTML = cl.dead ? `<b>🥀 Гнилушка</b><br>Удали (🗑️)` : `<b style="color:${p.col}">${p.name}</b> (x${p.mult})<br>Нектар: <b>${Math.floor(cl.nec)}/${cl.maxNec || 100}</b> | Поливов: <b>${cl.wLeft ?? p.maxW}</b>`;
+      } else if (cl.t === 'hive') {
+        const hm = HIVE_MODELS[cl.hModel || 'classic'], cnt = bees.filter(b => b.hr === r && b.hc === col).length;
+        tip.innerHTML = `<b style="color:${hm.body}">🏠 ${hm.name}</b> (${cnt}/${hm.slots} пчёл)<br>Нектар: <b>${Math.floor(cl.honey)}/${hm.cap}</b> | Прочность: <b>${cl.dur}/${hm.dur}</b>`;
+      }
+    };
+          function loop() {
+      c.width = c.clientWidth; c.height = c.clientHeight;
+      const bm = BIOMES[prof.biome], { cs, sx, sy } = metrics(), tNow = performance.now() * 0.001;
+      ctx.fillStyle = bm.bg; ctx.fillRect(0, 0, c.width, c.height);
+
+      if (prof.biome === 'mountain') {
+        for (let i = -1; i < 12; i++) {
+          const mx = (c.width / 10) * i, baseY = i % 2 ? sy - 10 : c.height;
+          ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(mx - 95, baseY); ctx.lineTo(mx, baseY - 125); ctx.lineTo(mx + 95, baseY); ctx.fill();
+          ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(mx - 65, baseY); ctx.lineTo(mx + 12, baseY - 95); ctx.lineTo(mx + 80, baseY); ctx.fill();
+          ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(mx - 24, baseY - 88); ctx.lineTo(mx, baseY - 125); ctx.lineTo(mx + 24, baseY - 88); ctx.lineTo(mx, baseY - 76); ctx.fill();
+        }
+        ctx.fillStyle = '#38bdf8'; ctx.fillRect(sx - 68, 0, 22, c.height);
+        ctx.fillStyle = '#e0f2fe'; for (let yw = (tNow * 90) % 40; yw < c.height; yw += 40) ctx.fillRect(sx - 64, yw, 6, 16);
+      } else if (prof.biome === 'forest') {
+        for (let ty = 20; ty < c.height; ty += 52) {
+          [sx - 44, sx - 90, sx + cs * COLS + 44, sx + cs * COLS + 90].forEach((tx, idx) => {
+            if (tx < 10 || tx > c.width - 10) return;
+            const sway = Math.sin(tNow + ty + idx) * 2;
+            ctx.fillStyle = '#451a03'; ctx.fillRect(tx - 4, ty + 10, 8, 12);
+            ctx.fillStyle = '#064e3b'; ctx.beginPath(); ctx.moveTo(tx + sway, ty - 26); ctx.lineTo(tx - 22, ty + 12); ctx.lineTo(tx + 22, ty + 12); ctx.fill();
+            ctx.fillStyle = '#059669'; ctx.beginPath(); ctx.moveTo(tx + sway, ty - 40); ctx.lineTo(tx - 16, ty - 8); ctx.lineTo(tx + 16, ty - 8); ctx.fill();
+          });
+          ctx.fillStyle = '#fef3c7'; ctx.fillRect(sx - 20, ty + 15, 4, 7);
+          ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(sx - 18, ty + 15, 6, Math.PI, 0); ctx.fill();
+        }
+      } else {
+        ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 26; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(sx - 55, 0); ctx.quadraticCurveTo(sx - 25, c.height * 0.5, sx - 65, c.height); ctx.stroke();
+        ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 10; ctx.stroke();
+        for (let i = 0; i < 14; i++) {
+          const fx = (i % 2 ? sx + cs * COLS + 35 + (i * 17) % 60 : sx - 95 - (i * 13) % 45), fy = 35 + i * 48;
+          if (fx > 10 && fx < c.width - 10 && fy < c.height - 20) {
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(fx, fy, 6, 0, 7); ctx.fill();
+            ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(fx, fy, 3, 0, 7); ctx.fill();
+          }
+        }
+        new Array(0, 1).forEach(bi => {
+          const bx = sx + cs * COLS + 50 + Math.cos(tNow * 1.3 + bi * 3) * 28, by = sy + 90 + bi * 140 + Math.sin(tNow * 2 + bi) * 22;
+          ctx.fillStyle = bi ? '#f472b6' : '#fde047';
+          ctx.beginPath(); ctx.ellipse(bx - 4, by, 5, 3, 0.4, 0, 7); ctx.ellipse(bx + 4, by, 5, 3, -0.4, 0, 7); ctx.fill();
+        });
+      }
+
+      ctx.strokeStyle = bm.fence; ctx.lineWidth = prof.biome === 'mountain' ? 10 : 8;
+      ctx.strokeRect(sx - 6, sy - 6, cs * COLS + 12, cs * ROWS + 12);
+      ctx.fillStyle = bm.c1; ctx.beginPath(); ctx.roundRect(sx - 2, sy - 2, cs * COLS + 4, cs * ROWS + 4, 14); ctx.fill();
+  const curGrid = visitGrid || grid;
+      for (let r = 0; r < ROWS; r++) for (let col = 0; col < COLS; col++) {
+        const x = sx + col * cs, y = sy + r * cs, cx = x + cs / 2, cy = y + cs / 2, cl = curGrid.at(r).at(col);
+        if (selCell && selCell.r === r && selCell.col === col) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.5; ctx.strokeRect(x + 6, y + 6, cs - 12, cs - 12); }
+        if (!cl) continue;
+        if (cl.t === 'flower') {
+          if (cl.dead) { ctx.fillStyle = '#57534e'; ctx.beginPath(); ctx.arc(cx, cy + 4, 14, 0, 7); ctx.fill(); ctx.fillStyle = '#d6d3d1'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🥀 Гнилушка', cx, y + 16); continue; }
+          const pCfg = PLANTS_CFG[cl.pType || 'clover'], mxN = cl.maxNec || 100;
+          ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.arc(cx, cy, cs * 0.22, 0, 7); ctx.fill();
+          if (cl.nec > 5) {
+            ctx.fillStyle = pCfg.col + '30'; ctx.beginPath(); ctx.arc(cx, cy - 2, 20 + Math.sin(performance.now() * 0.004 + r + col) * 4, 0, 7); ctx.fill();
+            [[-9,-6],[9,-5],[0,-11],[-4,5]].forEach(([ox, oy]) => { ctx.fillStyle = pCfg.col; ctx.beginPath(); ctx.arc(cx + ox, cy + oy, 5, 0, 7); ctx.fill(); });
+          } else { ctx.fillStyle = '#bae6fd'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💧 Полей!', cx, y + 16); }
+          ctx.fillStyle = '#0008'; ctx.fillRect(cx - 20, y + cs - 12, 40, 4); ctx.fillStyle = cl.nec > 5 ? '#38bdf8' : '#ef4444'; ctx.fillRect(cx - 20, y + cs - 12, 40 * Math.min(1, cl.nec / mxN), 4);
+        }
+        if (cl.t === 'hive') {
+          const hm = HIVE_MODELS[cl.hModel || 'classic'], w = cs * 0.56, h = cs * 0.52;
+          ctx.fillStyle = hm.body; ctx.strokeStyle = hm.roof; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = hm.roof; ctx.fillRect(cx - w * 0.56, cy - h * 0.62, w * 1.12, 10);
+          ctx.fillStyle = '#0008'; ctx.fillRect(cx - w / 2, y + cs - 14, w, 6); ctx.fillStyle = cl.honey >= 25 ? '#facc15' : '#fb923c'; ctx.fillRect(cx - w / 2, y + cs - 14, w * Math.min(1, cl.honey / hm.cap), 6);
+                  if (cl.honey >= 25) { ctx.fillStyle = '#fef08a'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🍯 ГОТОВО!', cx, y + 17); }
+        }
+             }
+
+                outerDecor.forEach((item, i) => {
+        if (!item || typeof item !== 'object') return;
+        const dx = item.x, dy = item.y, dType = item.type;
+        if (selDecorIdx === i) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, 24, 0, 7); ctx.stroke(); }
+
+
+        if (dType === 'pond') {
+          ctx.fillStyle = '#0284c7'; ctx.beginPath(); ctx.ellipse(dx, dy + 4, 24, 15, 0, 0, 7); ctx.fill();
+          ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.ellipse(dx - 3, dy + 2, 15, 9, 0, 0, 7); ctx.fill();
+        } else if (dType === 'tree') {
+          ctx.fillStyle = '#78350f'; ctx.fillRect(dx - 5, dy, 10, 18);
+          ctx.fillStyle = '#15803d'; ctx.beginPath(); ctx.arc(dx, dy - 8, 20, 0, 7); ctx.fill();
+          ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.arc(dx - 6, dy - 12, 12, 0, 7); ctx.fill();
+        } else if (dType === 'lantern') {
+          ctx.fillStyle = '#334155'; ctx.fillRect(dx - 3, dy - 8, 6, 26);
+          ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(dx, dy - 12, 8, 0, 7); ctx.fill();
+        } else if (dType === 'totem') {
+          ctx.fillStyle = '#d97706'; ctx.fillRect(dx - 10, dy - 16, 20, 34);
+          ctx.fillStyle = '#fef08a'; ctx.fillRect(dx - 7, dy - 12, 14, 8); ctx.fillRect(dx - 7, dy + 2, 14, 8);
+        } else {
+          ctx.fillStyle = '#9a3412'; ctx.beginPath(); ctx.moveTo(dx - 24, dy - 4); ctx.lineTo(dx, dy - 24); ctx.lineTo(dx + 24, dy - 4); ctx.fill();
+          ctx.fillStyle = '#fef3c7'; ctx.fillRect(dx - 18, dy - 4, 36, 22);
+        }
+      });
+
+      bees.forEach((b, idx) => {
+        const br = BEE_BREEDS[b.breed || 'forest'], hx = sx + b.hc * cs + cs / 2, hy = sy + b.hr * cs + cs / 2;
+        if (!b.init) { b.x = hx; b.y = hy; b.init = true; b.phase = idx * 2; }
+        b.phase += 0.08; let angle = 0; const myHive = grid.at(b.hr)?.at(b.hc), hCap = myHive ? HIVE_MODELS[myHive.hModel || 'classic'].cap : 100;
+        if (b.go) {
+          if (!myHive || myHive.honey >= hCap || myHive.dur <= 0) { b.x = hx + Math.cos(b.phase * 1.4) * 16; b.y = hy + Math.sin(b.phase * 1.4) * 12; b.tr = -1; }
+          else {
+            if (b.tr === -1 || grid.at(b.tr)?.at(b.tc)?.t !== 'flower' || grid.at(b.tr).at(b.tc).nec <= 5 || grid.at(b.tr).at(b.tc).dead) {
+              b.tr = -1; const list = [];
+              for (let r = 0; r < ROWS; r++) for (let col = 0; col < COLS; col++) { const f = grid.at(r).at(col); if (f?.t === 'flower' && !f.dead && f.nec > 5) list.push([r, col]); }
+              if (list.length) [b.tr, b.tc] = list.at(Math.floor(Math.random() * list.length));
+            }
+            if (b.tr === -1) { b.x = hx + Math.cos(b.phase * 1.4) * 16; b.y = hy + Math.sin(b.phase * 1.4) * 12; }
+            else {
+              const tx = sx + b.tc * cs + cs / 2 + Math.cos(b.phase * 1.5) * 10, ty = sy + b.tr * cs + cs / 2 + Math.sin(b.phase * 1.5) * 10;
+              const dx = tx - b.x, dy = ty - b.y, d = Math.hypot(dx, dy); angle = Math.atan2(dy, dx);
+              if (d < 8) { const fl = grid.at(b.tr).at(b.tc); fl.nec = Math.max(0, fl.nec - 12); b.cargo = br.cap * PLANTS_CFG[fl.pType || 'clover'].mult; b.go = false; }
+              else { const wv = Math.sin(b.phase * 2.2) * 1.3; b.x += (dx / d) * br.spd - (dy / d) * wv; b.y += (dy / d) * br.spd + (dx / d) * wv; }
+            }
+          }
+        } else {
+          const dx = hx - b.x, dy = hy - b.y, d = Math.hypot(dx, dy); angle = Math.atan2(dy, dx);
+          if (d < 8) { if (myHive?.t === 'hive' && myHive.dur > 0) myHive.honey = Math.min(hCap, myHive.honey + b.cargo); b.cargo = 0; b.tr = -1; b.go = true; if (typeof b.life === 'number' && --b.life <= 0) b.dead = true; }
+          else { const wv = Math.sin(b.phase * 2.2) * 1.3; b.x += (dx / d) * br.spd - (dy / d) * wv; b.y += (dy / d) * br.spd + (dx / d) * wv; }
+        }
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(angle); ctx.scale(br.sz, br.sz);
+        ctx.fillStyle = br.col; ctx.beginPath(); ctx.ellipse(0, 0, 8, 5.5, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = br.stripe; ctx.fillRect(-3, -5, 2.5, 10); ctx.fillRect(1.5, -5, 2.5, 10);
+        if (br.crown) { ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.moveTo(5, -4); ctx.lineTo(9, -6); ctx.lineTo(8, 0); ctx.lineTo(9, 6); ctx.lineTo(5, 4); ctx.fill(); }
+        ctx.restore();
+      });
+      bees = bees.filter(b => !b.dead);
+      fxParticles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life--; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.sz, 0, 7); ctx.fill(); });
+      fxParticles = fxParticles.filter(p => p.life > 0);
+      ui(); requestAnimationFrame(loop);
+    }
+    updateToolLabels(); loop();
+  </script>
+</body>
+</html>
